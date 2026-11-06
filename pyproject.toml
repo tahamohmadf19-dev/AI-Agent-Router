@@ -1,13 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "pythonproject4"
-version = "0.1.0"
-description = "Add your description here"
+name = "ai-agent-router"
+version = "0.2.0"
+description = "Single-turn LangGraph router: Pydantic intent classification and prompt-specialized response nodes."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = [
-    "ipykernel>=7.2.0",
     "langchain[anthropic]>=1.2.12",
     "langgraph>=1.1.2",
+    "pydantic>=2",
     "python-dotenv>=1.2.2",
-    "streamlit>=1.55.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+agent-router = "main:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

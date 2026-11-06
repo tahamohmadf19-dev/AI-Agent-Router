@@ -1,91 +1,86 @@
 # AI Agent Router
 
-**AI-Agent-Router** is a demonstration of a multi‑agent conversational router that uses a large language model to classify user messages and route them to specialized agents for a contextual response.  It shows how to orchestrate multiple LLM-powered components in a single workflow using LangGraph.
+A small LangGraph workflow that classifies a user message with structured output, then sends it to
+one of two prompt-specialized response nodes.
 
-## Problem statement
+**Status:** educational prototype. It runs as a Python module and CLI. It is single-turn, with no
+memory between messages, no external tools, and no deployed backend. It is a routed LLM workflow rather
+than an autonomous agent.
 
-When building chatbots or AI assistants with multiple skills (e.g., therapy vs. logic), it is hard to route each user request to the appropriate agent.  Without routing, a generic model may answer inappropriately or inefficiently.
+## How it works
 
-This project demonstrates how to classify user messages into different categories (emotional vs. logical) and invoke the corresponding agent to generate a better response.
+```mermaid
+flowchart LR
+  IN["User message"] --> VAL["Validate input"]
+  VAL --> CLS["Classifier<br/>Pydantic structured output"]
+  CLS --> R{"Route"}
+  R -->|emotional| SUP["Supportive node"]
+  R -->|logical| LOG["Logical node"]
+  SUP --> OUT["Reply"]
+  LOG --> OUT
+```
 
-## Main features
+Each message makes two model calls: one to classify and one to respond. The response node only sees the
+current message.
 
-- **Message classification**: uses an LLM to determine whether a user message is emotional or logical.
-- **Specialized agents**: defines separate agents (therapist and logic) to handle different kinds of queries.
-- **Graph orchestration**: uses LangGraph to build a state graph that routes messages based on classification.
-- **Extensible architecture**: easy to add more agents and classification categories.
+The supportive node is a listener and states that it is not a therapist. It should not be used as
+mental health care.
 
-## Architecture / Workflow
+## Setup
 
-1. **Load models** – A chat model is loaded through `init_chat_model` (e.g., Anthropic Claude) using your API key.
-2. **Define message classifier** – A Pydantic model describes the classification result.
-3. **Build the routing graph** – The router uses LangGraph's `StateGraph` to set up nodes for classification and different agents, with edges based on classification results.
-4. **Process a message** – The `chat_once` function takes a message, runs the graph, and returns the agent’s response.
-
-For more details, see the comments in `main.py`.
-
-## Tech stack
-
-- **Python**
-- **LangChain / LangGraph** – for building LLM workflows and the state graph.
-- **Anthropic Claude** (or any chat model) via `langchain[anthropic]`
-- **Pydantic** – type safety and structured outputs.
-- **dotenv** – for environment variable management.
-
-## Installation
-
-Clone the repository and install dependencies:
+Requires Python 3.11 or newer.
 
 ```bash
-git clone https://github.com/tahamohmadf19-dev/AI-Agent-Router1.git
-cd AI-Agent-Router1
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-pip install -r requirements.txt  # or use pip install -e . to install from pyproject
+git clone https://github.com/tahamohmadf19-dev/AI-Agent-Router.git
+cd AI-Agent-Router
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
-> **Note:** This project uses Python 3.10 or newer.  The `pyproject.toml` lists the required packages.
-
-## Environment variables
-
-Create a `.env` file in the project root with your API keys:
+To call a real model, create a `.env` file (this repository ignores it):
 
 ```
-ANTHROPIC_API_KEY=sk-...
+ANTHROPIC_API_KEY=your-key
+# Optional. Any model id supported by LangChain's init_chat_model.
+ROUTER_MODEL=anthropic:claude-sonnet-4-5
 ```
 
-You can adjust the model name or provider in `main.py` (e.g., `anthropic:claude-sonnet-4-5`).
+## Usage
 
-## How to run
-
-After installing dependencies and setting environment variables, you can test the router by starting a Python session:
+```bash
+agent-router "What is the capital of France?"
+```
 
 ```python
-from main import chat_once
-response = chat_once("I feel very stressed. What should I do?")
-print(response)
+from main import run_once
+
+result = run_once("I feel stressed about my exams.")
+print(result["route"], result["reply"])
 ```
 
-The function will classify the message and route it to the appropriate agent.
+| Exit code | Meaning |
+|---:|---|
+| 0 | Replied |
+| 1 | The model provider failed |
+| 2 | Invalid input (empty, or over 4,000 characters) |
 
-## Usage example
+## Tests
 
-Here is a sample interaction:
-
+```bash
+python -m pytest
 ```
->>> chat_once("I'm worried about my future and need some advice.")
-# Therapist agent responds with empathetic guidance.
->>> chat_once("What is the capital of France?")
-# Logical agent returns a factual answer: "The capital of France is Paris."
-```
 
-## Future improvements
+The tests use a fake model, so they need no API key or network. They cover both routes, input validation,
+provider failures, and the single-turn behavior. **They do not measure how well a real model classifies
+messages.** No routing accuracy has been evaluated.
 
-- Add more classification categories and agents (e.g., coding assistant, math tutor).
-- Integrate a vector database and retrieval‑augmented generation to ground responses in your documents.
-- Build a Streamlit or FastAPI interface for interactive chat.
-- Persist conversation histories in a secure database.
+## Limitations
+
+- Mixed messages go to one route only.
+- There is no conversation memory, retrieval, or tool use.
+- Two model calls per message add cost and latency compared with one.
 
 ## License
 
-This project is provided for educational purposes under the MIT license.
+MIT. See [LICENSE](LICENSE).
